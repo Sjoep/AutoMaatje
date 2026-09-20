@@ -3,12 +3,8 @@ import pandas as pd
 import plotly.express as px
 
 from streamlit_elements import elements, mui
-from supabase_client import get_supabase
+from auth import require_login, logout
 
-
-# ─────────────────────────────────────────────
-# Pagina
-# ─────────────────────────────────────────────
 
 st.set_page_config(
     page_title="AutoMaatje",
@@ -16,12 +12,9 @@ st.set_page_config(
     layout="wide",
 )
 
-supabase = get_supabase()
+# Login controleren EN authenticated Supabase-client ophalen
+user, supabase = require_login()
 
-
-# ─────────────────────────────────────────────
-# Data ophalen
-# ─────────────────────────────────────────────
 
 @st.cache_data(ttl=60)
 def load_data():
