@@ -1,5 +1,4 @@
 import streamlit as st
-from textwrap import dedent
 
 
 st.set_page_config(
@@ -10,10 +9,10 @@ st.set_page_config(
 )
 
 
-# Zijbalk op deze pagina verbergen
+# Sidebar verbergen
 st.markdown(
     """
-<style>
+    <style>
     [data-testid="stSidebar"] {
         display: none;
     }
@@ -23,81 +22,89 @@ st.markdown(
     }
 
     .block-container {
-        max-width: 720px;
+        max-width: 620px;
         padding-top: 8rem;
+        padding-bottom: 4rem;
     }
-</style>
-""",
+
+    div[data-testid="stButton"] > button {
+        border-radius: 12px;
+        height: 52px;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
 
-# Bevestigingskaart
-st.markdown(
-    dedent(
-        """
-        <div style="
-            max-width: 580px;
-            margin: 0 auto;
-            padding: 48px 42px;
-            border: 1px solid #e5e7eb;
-            border-radius: 24px;
-            background: white;
-            text-align: center;
-        ">
-
-            <div style="
-                width: 72px;
-                height: 72px;
-                margin: 0 auto 24px auto;
-                border-radius: 50%;
-                background: #ecfdf3;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 34px;
-            ">
-                ✓
-            </div>
-
-            <div style="
-                font-size: 34px;
-                font-weight: 700;
-                margin-bottom: 14px;
-                color: #111827;
-            ">
-                E-mailadres bevestigd
-            </div>
-
-            <div style="
-                font-size: 17px;
-                line-height: 1.6;
-                color: #6b7280;
-                margin-bottom: 10px;
-            ">
-                Je AutoMaatje-account is succesvol geverifieerd.
-            </div>
-
-            <div style="
-                font-size: 17px;
-                line-height: 1.6;
-                color: #6b7280;
-            ">
-                Je kunt nu inloggen en je ritten, tankbeurten
-                en kilometervergoeding bijhouden.
-            </div>
-
-        </div>
-        """
-    ),
-    unsafe_allow_html=True,
-)
-
-
+# Bovenruimte
 st.write("")
 
-st.page_link(
-    "App.py",
-    label="🚗 Naar AutoMaatje",
-    use_container_width=True,
+
+# Icoon
+st.markdown(
+    """
+    <div style="
+        text-align:center;
+        font-size:64px;
+        margin-bottom:12px;
+    ">
+        ✅
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
+
+
+# Titel
+st.markdown(
+    """
+    <h1 style="
+        text-align:center;
+        font-size:36px;
+        margin-bottom:12px;
+    ">
+        E-mailadres bevestigd
+    </h1>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# Tekst
+st.markdown(
+    """
+    <p style="
+        text-align:center;
+        font-size:18px;
+        color:#6b7280;
+        line-height:1.6;
+        margin-bottom:8px;
+    ">
+        Je AutoMaatje-account is succesvol geverifieerd.
+    </p>
+
+    <p style="
+        text-align:center;
+        font-size:17px;
+        color:#6b7280;
+        line-height:1.6;
+        margin-bottom:32px;
+    ">
+        Je kunt nu inloggen en je ritten, tankbeurten
+        en kilometervergoeding bijhouden.
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# Knop naar hoofdpagina
+if st.button(
+    "🚗 Naar AutoMaatje",
+    use_container_width=True,
+    type="primary",
+):
+    st.switch_page("App.py")
