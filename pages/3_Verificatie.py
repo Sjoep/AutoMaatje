@@ -1,63 +1,100 @@
 import streamlit as st
+from textwrap import dedent
 
 
 st.set_page_config(
     page_title="E-mail bevestigd",
     page_icon="✅",
     layout="centered",
+    initial_sidebar_state="collapsed",
 )
 
+
+# Zijbalk op deze pagina verbergen
 st.markdown(
     """
-    <style>
-        .verify-card {
-            max-width: 560px;
-            margin: 80px auto 0 auto;
-            padding: 42px;
-            border: 1px solid #e5e7eb;
-            border-radius: 24px;
-            text-align: center;
-            background: white;
-        }
+<style>
+    [data-testid="stSidebar"] {
+        display: none;
+    }
 
-        .verify-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-        }
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
 
-        .verify-title {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .verify-text {
-            font-size: 17px;
-            color: #6b7280;
-            line-height: 1.6;
-            margin-bottom: 28px;
-        }
-    </style>
-
-    <div class="verify-card">
-
-        <div class="verify-icon">
-            ✅
-        </div>
-
-        <div class="verify-title">
-            E-mailadres bevestigd
-        </div>
-
-        <div class="verify-text">
-            Je account voor AutoMaatje is succesvol geverifieerd.
-            Je kunt nu inloggen en je ritten en tankbeurten beheren.
-        </div>
-
-    </div>
-    """,
+    .block-container {
+        max-width: 720px;
+        padding-top: 8rem;
+    }
+</style>
+""",
     unsafe_allow_html=True,
 )
+
+
+# Bevestigingskaart
+st.markdown(
+    dedent(
+        """
+        <div style="
+            max-width: 580px;
+            margin: 0 auto;
+            padding: 48px 42px;
+            border: 1px solid #e5e7eb;
+            border-radius: 24px;
+            background: white;
+            text-align: center;
+        ">
+
+            <div style="
+                width: 72px;
+                height: 72px;
+                margin: 0 auto 24px auto;
+                border-radius: 50%;
+                background: #ecfdf3;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 34px;
+            ">
+                ✓
+            </div>
+
+            <div style="
+                font-size: 34px;
+                font-weight: 700;
+                margin-bottom: 14px;
+                color: #111827;
+            ">
+                E-mailadres bevestigd
+            </div>
+
+            <div style="
+                font-size: 17px;
+                line-height: 1.6;
+                color: #6b7280;
+                margin-bottom: 10px;
+            ">
+                Je AutoMaatje-account is succesvol geverifieerd.
+            </div>
+
+            <div style="
+                font-size: 17px;
+                line-height: 1.6;
+                color: #6b7280;
+            ">
+                Je kunt nu inloggen en je ritten, tankbeurten
+                en kilometervergoeding bijhouden.
+            </div>
+
+        </div>
+        """
+    ),
+    unsafe_allow_html=True,
+)
+
+
+st.write("")
 
 st.page_link(
     "App.py",
