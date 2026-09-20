@@ -1,0 +1,14 @@
+Frontend/UI:
+    Streamlit
+    Streamlit Elements
+    Plotly
+    streamlit-option-menu
+
+Database:
+    Supabase
+
+Hosting:
+    Streamlit Cloud
+
+Code:
+    GitHub
