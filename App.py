@@ -1021,8 +1021,6 @@ with recent1:
             st.page_link(
                 "pages/2_Ritten.py",
                 label="Alle ritten bekijken",
-                icon="→",
-                use_container_width=True,
             )
 
 
@@ -1126,7 +1124,6 @@ with recent2:
             st.page_link(
                 "pages/1_Tanken.py",
                 label="Alle tankbeurten bekijken",
-                icon="→",
                 use_container_width=True,
             )
 
