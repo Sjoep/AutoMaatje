@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
 
-from supabase_client import get_supabase
+from datetime import date, timedelta
+from auth import require_login
 
 
 # ============================================================
-# PAGINA INSTELLINGEN
+# PAGINA
 # ============================================================
 
 st.set_page_config(
@@ -15,12 +15,216 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🛣️ Ritten")
-st.caption(
-    "Registreer één of meerdere ritten en bekijk zakelijke en privéritten apart."
+
+# ============================================================
+# UX / UI
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* ─────────────────────────────────────────────
+       Pagina animatie
+       ───────────────────────────────────────────── */
+
+    @keyframes pageFade {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .block-container {
+        max-width: 1280px;
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+
+        animation:
+            pageFade 0.35s ease-out;
+    }
+
+
+    /* ─────────────────────────────────────────────
+       KPI cards
+       ───────────────────────────────────────────── */
+
+    div[data-testid="stMetric"] {
+        padding: 18px 20px;
+
+        border:
+            1px solid rgba(128, 128, 128, 0.18);
+
+        border-radius: 16px;
+
+        background:
+            rgba(255, 255, 255, 0.025);
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            border-color 0.18s ease;
+    }
+
+    div[data-testid="stMetric"]:hover {
+        transform:
+            translateY(-2px);
+
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.07);
+
+        border-color:
+            rgba(128, 128, 128, 0.35);
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Buttons
+       ───────────────────────────────────────────── */
+
+    div[data-testid="stButton"] > button {
+        min-height: 46px;
+
+        border-radius: 12px;
+
+        font-weight: 600;
+
+        transition:
+            transform 0.16s ease,
+            box-shadow 0.16s ease;
+    }
+
+    div[data-testid="stButton"] > button:hover {
+        transform:
+            translateY(-1px);
+
+        box-shadow:
+            0 6px 16px rgba(0, 0, 0, 0.10);
+    }
+
+    div[data-testid="stButton"] > button:active {
+        transform:
+            translateY(0);
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Inputvelden
+       ───────────────────────────────────────────── */
+
+    div[data-baseweb="input"] > div {
+        border-radius: 11px !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        border-radius: 11px !important;
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Tabellen
+       ───────────────────────────────────────────── */
+
+    div[data-testid="stDataFrame"] {
+        border:
+            1px solid rgba(128, 128, 128, 0.16);
+
+        border-radius: 14px;
+
+        overflow: hidden;
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Expanders
+       ───────────────────────────────────────────── */
+
+    div[data-testid="stExpander"] {
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Tabs
+       ───────────────────────────────────────────── */
+
+    button[data-baseweb="tab"] {
+        font-weight: 600;
+
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Mobiel
+       ───────────────────────────────────────────── */
+
+    @media (max-width: 768px) {
+
+        .block-container {
+            padding-top: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        [data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap;
+        }
+
+        [data-testid="column"] {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+        }
+    }
+
+
+    /* ─────────────────────────────────────────────
+       Reduced motion
+       ───────────────────────────────────────────── */
+
+    @media (prefers-reduced-motion: reduce) {
+
+        *,
+        *::before,
+        *::after {
+            animation-duration:
+                0.01ms !important;
+
+            transition-duration:
+                0.01ms !important;
+        }
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-supabase = get_supabase()
+
+# ============================================================
+# AUTH
+# ============================================================
+
+user, supabase = require_login()
+
+
+# ============================================================
+# HEADER
+# ============================================================
+
+st.title("🛣️ Ritten")
+
+st.caption(
+    "Registreer je ritten, bereken je kilometervergoeding "
+    "en houd zakelijk en privé gescheiden."
+)
 
 
 # ============================================================
@@ -28,24 +232,30 @@ supabase = get_supabase()
 # ============================================================
 
 @st.cache_data(ttl=30)
-def load_ritten():
-    """
-    Haal alle ritten uit Supabase op
-    en bereid de belangrijkste kolommen voor.
-    """
+def load_ritten(user_id):
 
     response = (
         supabase
         .table("ritten")
         .select("*")
-        .order("datum", desc=True)
+        .eq(
+            "user_id",
+            user_id
+        )
+        .order(
+            "datum",
+            desc=True
+        )
         .execute()
     )
 
-    df = pd.DataFrame(response.data)
+    df = pd.DataFrame(
+        response.data
+    )
 
     if df.empty:
         return df
+
 
     # Datum
     df["datum"] = pd.to_datetime(
@@ -53,7 +263,8 @@ def load_ritten():
         errors="coerce"
     )
 
-    # Numerieke kolommen
+
+    # Numerieke velden
     numerieke_kolommen = [
         "kilometers",
         "vergoeding_per_km",
@@ -62,11 +273,14 @@ def load_ritten():
     ]
 
     for kolom in numerieke_kolommen:
+
         if kolom in df.columns:
+
             df[kolom] = pd.to_numeric(
                 df[kolom],
                 errors="coerce"
             )
+
 
     # Bruto vergoeding
     df["bruto_vergoeding"] = (
@@ -74,7 +288,8 @@ def load_ritten():
         * df["vergoeding_per_km"]
     )
 
-    # Belastingvrij bedrag
+
+    # Belastingvrij
     df["belastingvrij_bedrag"] = (
         df["kilometers"]
         * df[
@@ -82,16 +297,22 @@ def load_ritten():
                 "vergoeding_per_km",
                 "belastingvrij_per_km"
             ]
-        ].min(axis=1)
+        ].min(
+            axis=1
+        )
     )
+
 
     # Belast gedeelte
     df["belast_bedrag"] = (
         df["bruto_vergoeding"]
         - df["belastingvrij_bedrag"]
-    ).clip(lower=0)
+    ).clip(
+        lower=0
+    )
 
-    # Geschatte belasting
+
+    # Belasting
     df["belasting"] = (
         df["belast_bedrag"]
         * (
@@ -100,15 +321,18 @@ def load_ritten():
         )
     )
 
-    # Geschatte netto vergoeding
+
+    # Netto
     df["netto_vergoeding"] = (
         df["bruto_vergoeding"]
         - df["belasting"]
     )
 
-    # Privéritten krijgen geen vergoeding
+
+    # Privé = geen vergoeding
     prive_mask = (
-        df["type_rit"] == "Privé"
+        df["type_rit"]
+        == "Privé"
     )
 
     df.loc[
@@ -122,33 +346,38 @@ def load_ritten():
         ],
     ] = 0
 
+
     return df
 
 
 def get_opgeslagen_locaties(df):
-    """
-    Maak één lijst van alle eerder gebruikte
-    vertrek- en bestemmingslocaties.
-    """
 
     if df.empty:
         return []
 
     locaties = set()
 
-    if "van" in df.columns:
-        for locatie in df["van"].dropna():
-            locatie = str(locatie).strip()
+    for kolom in [
+        "van",
+        "naar"
+    ]:
 
-            if locatie:
-                locaties.add(locatie)
+        if kolom in df.columns:
 
-    if "naar" in df.columns:
-        for locatie in df["naar"].dropna():
-            locatie = str(locatie).strip()
+            for locatie in (
+                df[kolom]
+                .dropna()
+            ):
 
-            if locatie:
-                locaties.add(locatie)
+                locatie = (
+                    str(locatie)
+                    .strip()
+                )
+
+                if locatie:
+                    locaties.add(
+                        locatie
+                    )
 
     return sorted(
         locaties,
@@ -156,14 +385,59 @@ def get_opgeslagen_locaties(df):
     )
 
 
+def filter_periode(
+    dataframe,
+    periode
+):
+
+    if dataframe.empty:
+        return dataframe
+
+    vandaag = pd.Timestamp.today()
+
+    df = dataframe.copy()
+
+
+    if periode == "Deze maand":
+
+        return df[
+            (df["datum"].dt.year == vandaag.year)
+            &
+            (df["datum"].dt.month == vandaag.month)
+        ]
+
+
+    if periode == "Vorige maand":
+
+        vorige = (
+            vandaag
+            - pd.DateOffset(
+                months=1
+            )
+        )
+
+        return df[
+            (df["datum"].dt.year == vorige.year)
+            &
+            (df["datum"].dt.month == vorige.month)
+        ]
+
+
+    if periode == "Dit jaar":
+
+        return df[
+            df["datum"].dt.year
+            == vandaag.year
+        ]
+
+
+    return df
+
+
 def format_overzicht(
     df,
     inclusief_vergoeding=True
 ):
-    """
-    Maak een nette dataframe voor weergave
-    in Streamlit.
-    """
 
     if inclusief_vergoeding:
 
@@ -189,110 +463,160 @@ def format_overzicht(
             "kilometers",
         ]
 
-    overzicht = df[kolommen].copy()
+
+    overzicht = (
+        df[kolommen]
+        .copy()
+    )
+
 
     overzicht["datum"] = (
         overzicht["datum"]
-        .dt.strftime("%d-%m-%Y")
+        .dt.strftime(
+            "%d-%m-%Y"
+        )
     )
 
-    rename = {
-        "datum": "Datum",
-        "van": "Van",
-        "naar": "Naar",
-        "omschrijving": "Omschrijving",
-        "type_rit": "Type",
-        "kilometers": "Kilometers",
-        "vergoeding_per_km": "€/km",
-        "bruto_vergoeding": "Bruto vergoeding",
-        "netto_vergoeding": "Geschat netto",
-    }
 
     overzicht = overzicht.rename(
-        columns=rename
+        columns={
+            "datum":
+                "Datum",
+
+            "van":
+                "Van",
+
+            "naar":
+                "Naar",
+
+            "omschrijving":
+                "Omschrijving",
+
+            "type_rit":
+                "Type",
+
+            "kilometers":
+                "Kilometers",
+
+            "vergoeding_per_km":
+                "€/km",
+
+            "bruto_vergoeding":
+                "Bruto",
+
+            "netto_vergoeding":
+                "Netto",
+        }
     )
+
 
     if inclusief_vergoeding:
 
         overzicht["€/km"] = (
             overzicht["€/km"]
             .apply(
-                lambda x: (
+                lambda x:
                     f"€ {x:.3f}"
                     if pd.notna(x)
                     else "-"
-                )
             )
         )
 
-        overzicht["Bruto vergoeding"] = (
-            overzicht["Bruto vergoeding"]
+
+        overzicht["Bruto"] = (
+            overzicht["Bruto"]
             .apply(
-                lambda x: f"€ {x:.2f}"
+                lambda x:
+                    f"€ {x:.2f}"
             )
         )
 
-        overzicht["Geschat netto"] = (
-            overzicht["Geschat netto"]
+
+        overzicht["Netto"] = (
+            overzicht["Netto"]
             .apply(
-                lambda x: f"€ {x:.2f}"
+                lambda x:
+                    f"€ {x:.2f}"
             )
         )
+
 
     return overzicht
 
 
 def verwijder_rit(
     dataframe,
-    type_label,
     key_prefix
 ):
-    """
-    Toon een selectieveld waarmee één rit
-    verwijderd kan worden.
-    """
 
     if dataframe.empty:
         return
 
-    st.divider()
 
     with st.expander(
-        f"🗑️ {type_label} verwijderen"
+        "⚠️ Gevarenzone"
     ):
+
+        st.caption(
+            "Verwijder hier een opgeslagen rit. "
+            "Deze actie kan niet ongedaan worden gemaakt."
+        )
+
 
         rit_opties = {}
 
-        for _, row in dataframe.iterrows():
+
+        for _, row in (
+            dataframe.iterrows()
+        ):
 
             datum_text = (
-                row["datum"].strftime("%d-%m-%Y")
-                if pd.notna(row["datum"])
-                else "Onbekende datum"
+                row["datum"]
+                .strftime(
+                    "%d-%m-%Y"
+                )
+                if pd.notna(
+                    row["datum"]
+                )
+                else
+                "Onbekende datum"
             )
 
+
             label = (
-                f"{datum_text} | "
-                f"{row['van']} → {row['naar']} | "
+                f"{datum_text} · "
+                f"{row['van']} → "
+                f"{row['naar']} · "
                 f"{row['kilometers']:.1f} km"
             )
 
-            # ID toevoegen indien twee ritten exact dezelfde omschrijving hebben
-            label = f"{label} | #{row['id']}"
 
-            rit_opties[label] = row["id"]
+            rit_opties[
+                label
+            ] = row["id"]
 
-        geselecteerde_rit = st.selectbox(
-            "Selecteer een rit",
-            options=list(
-                rit_opties.keys()
-            ),
-            index=None,
-            placeholder="Kies een rit...",
-            key=f"{key_prefix}_select",
+
+        geselecteerde_rit = (
+            st.selectbox(
+                "Selecteer rit",
+                options=list(
+                    rit_opties.keys()
+                ),
+                index=None,
+                placeholder=(
+                    "Kies een rit..."
+                ),
+                key=(
+                    f"{key_prefix}_select"
+                ),
+            )
         )
 
-        if geselecteerde_rit is not None:
+
+        if (
+            geselecteerde_rit
+            is not None
+        ):
 
             verwijder_id = (
                 rit_opties[
@@ -300,15 +624,24 @@ def verwijder_rit(
                 ]
             )
 
-            bevestigen = st.checkbox(
-                "Ik weet zeker dat ik deze rit wil verwijderen",
-                key=f"{key_prefix}_confirm",
+
+            bevestigen = (
+                st.checkbox(
+                    "Ik weet zeker dat "
+                    "ik deze rit wil verwijderen",
+                    key=(
+                        f"{key_prefix}_confirm"
+                    ),
+                )
             )
 
+
             if st.button(
-                "🗑️ Rit definitief verwijderen",
+                "🗑️ Rit verwijderen",
                 disabled=not bevestigen,
-                key=f"{key_prefix}_button",
+                key=(
+                    f"{key_prefix}_button"
+                ),
                 use_container_width=True,
             ):
 
@@ -325,43 +658,58 @@ def verwijder_rit(
                         .execute()
                     )
 
+
                     st.cache_data.clear()
 
-                    st.success(
-                        "Rit verwijderd."
+
+                    st.toast(
+                        "Rit verwijderd",
+                        icon="🗑️"
                     )
 
+
                     st.rerun()
+
 
                 except Exception as e:
 
                     st.error(
-                        "Rit verwijderen is niet gelukt."
+                        "Rit verwijderen "
+                        "is niet gelukt."
                     )
 
                     st.exception(e)
 
 
 # ============================================================
-# DATA LADEN
+# DATA
 # ============================================================
 
 try:
 
-    ritten_df = load_ritten()
+    with st.spinner(
+        "Ritten laden..."
+    ):
+
+        ritten_df = load_ritten(
+            user.id
+        )
+
 
 except Exception as e:
 
     st.error(
-        "Ritten konden niet uit Supabase worden geladen."
+        "Ritten konden niet "
+        "uit Supabase worden geladen."
     )
 
     st.exception(e)
 
-    ritten_df = pd.DataFrame()
+    ritten_df = (
+        pd.DataFrame()
+    )
 
 
-# Eerder gebruikte locaties ophalen
 opgeslagen_locaties = (
     get_opgeslagen_locaties(
         ritten_df
@@ -373,317 +721,382 @@ opgeslagen_locaties = (
 # TABS
 # ============================================================
 
-tab_nieuw, tab_zakelijk, tab_prive = st.tabs(
-    [
-        "➕ Nieuwe rit",
-        "💼 Zakelijk",
-        "🏠 Privé",
-    ]
+tab_nieuw, tab_zakelijk, tab_prive = (
+    st.tabs(
+        [
+            "➕ Nieuwe rit",
+            "💼 Zakelijk",
+            "🏠 Privé",
+        ]
+    )
 )
 
 
 # ============================================================
-# TAB 1 - NIEUWE RIT
+# TAB 1 — NIEUWE RIT
 # ============================================================
 
 with tab_nieuw:
 
-    st.subheader("Nieuwe rit")
-
-    # --------------------------------------------------------
-    # Één dag / meerdere dagen
-    # --------------------------------------------------------
-
-    invoer_type = st.radio(
-        "Rit invoeren voor",
-        [
-            "Eén dag",
-            "Meerdere dagen"
-        ],
-        horizontal=True,
+    st.subheader(
+        "Nieuwe rit"
     )
 
-    # --------------------------------------------------------
-    # Datumselectie
-    # --------------------------------------------------------
+    st.caption(
+        "Voer één rit in of voeg dezelfde "
+        "rit direct voor meerdere dagen toe."
+    )
 
-    if invoer_type == "Eén dag":
 
-        geselecteerde_datums = [
-            st.date_input(
-                "Datum",
-                value=date.today(),
-                key="enkele_datum",
+    # ========================================================
+    # 1. DATUM
+    # ========================================================
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "#### 📅 Wanneer?"
+        )
+
+
+        invoer_type = st.radio(
+            "Rit invoeren voor",
+            [
+                "Eén dag",
+                "Meerdere dagen"
+            ],
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+
+        if invoer_type == "Eén dag":
+
+            geselecteerde_datums = [
+                st.date_input(
+                    "Datum",
+                    value=date.today(),
+                    key="enkele_datum",
+                )
+            ]
+
+
+        else:
+
+            datum1, datum2 = (
+                st.columns(2)
             )
-        ]
 
-    else:
 
-        datum_col1, datum_col2 = (
+            with datum1:
+
+                datum_van = (
+                    st.date_input(
+                        "Van datum",
+                        value=date.today(),
+                        key="datum_van",
+                    )
+                )
+
+
+            with datum2:
+
+                datum_tot = (
+                    st.date_input(
+                        "Tot datum",
+                        value=date.today(),
+                        key="datum_tot",
+                    )
+                )
+
+
+            weekdagen = (
+                st.multiselect(
+                    "Welke dagen?",
+                    [
+                        "Maandag",
+                        "Dinsdag",
+                        "Woensdag",
+                        "Donderdag",
+                        "Vrijdag",
+                        "Zaterdag",
+                        "Zondag",
+                    ],
+                    default=[
+                        "Maandag",
+                        "Dinsdag",
+                        "Woensdag",
+                        "Donderdag",
+                        "Vrijdag",
+                    ],
+                )
+            )
+
+
+            dag_mapping = {
+                "Maandag": 0,
+                "Dinsdag": 1,
+                "Woensdag": 2,
+                "Donderdag": 3,
+                "Vrijdag": 4,
+                "Zaterdag": 5,
+                "Zondag": 6,
+            }
+
+
+            gekozen_dagen = [
+                dag_mapping[
+                    dag
+                ]
+                for dag
+                in weekdagen
+            ]
+
+
+            geselecteerde_datums = []
+
+
+            if (
+                datum_tot
+                >= datum_van
+            ):
+
+                huidige = (
+                    datum_van
+                )
+
+
+                while (
+                    huidige
+                    <= datum_tot
+                ):
+
+                    if (
+                        huidige.weekday()
+                        in gekozen_dagen
+                    ):
+
+                        geselecteerde_datums.append(
+                            huidige
+                        )
+
+
+                    huidige += timedelta(
+                        days=1
+                    )
+
+
+            if (
+                datum_tot
+                < datum_van
+            ):
+
+                st.warning(
+                    "De einddatum ligt "
+                    "vóór de begindatum."
+                )
+
+
+            elif not weekdagen:
+
+                st.warning(
+                    "Selecteer minimaal "
+                    "één weekdag."
+                )
+
+
+            elif geselecteerde_datums:
+
+                st.success(
+                    f"{len(geselecteerde_datums)} "
+                    f"dagen geselecteerd."
+                )
+
+
+                with st.expander(
+                    "Geselecteerde datums bekijken"
+                ):
+
+                    for datum_item in (
+                        geselecteerde_datums
+                    ):
+
+                        st.write(
+                            datum_item.strftime(
+                                "%d-%m-%Y"
+                            )
+                        )
+
+
+    # ========================================================
+    # 2. ROUTE
+    # ========================================================
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "#### 📍 Route"
+        )
+
+
+        col1, col2 = (
             st.columns(2)
         )
 
-        with datum_col1:
-
-            datum_van = st.date_input(
-                "Van datum",
-                value=date.today(),
-                key="datum_van",
-            )
-
-        with datum_col2:
-
-            datum_tot = st.date_input(
-                "Tot datum",
-                value=date.today(),
-                key="datum_tot",
-            )
-
-        weekdagen = st.multiselect(
-            "Welke dagen?",
-            [
-                "Maandag",
-                "Dinsdag",
-                "Woensdag",
-                "Donderdag",
-                "Vrijdag",
-                "Zaterdag",
-                "Zondag",
-            ],
-            default=[
-                "Maandag",
-                "Dinsdag",
-                "Woensdag",
-                "Donderdag",
-                "Vrijdag",
-            ],
-        )
-
-        dag_mapping = {
-            "Maandag": 0,
-            "Dinsdag": 1,
-            "Woensdag": 2,
-            "Donderdag": 3,
-            "Vrijdag": 4,
-            "Zaterdag": 5,
-            "Zondag": 6,
-        }
-
-        geselecteerde_weekdagen = [
-            dag_mapping[dag]
-            for dag in weekdagen
-        ]
-
-        geselecteerde_datums = []
-
-        if datum_tot >= datum_van:
-
-            huidige_datum = datum_van
-
-            while (
-                huidige_datum
-                <= datum_tot
-            ):
-
-                if (
-                    huidige_datum.weekday()
-                    in geselecteerde_weekdagen
-                ):
-
-                    geselecteerde_datums.append(
-                        huidige_datum
-                    )
-
-                huidige_datum += timedelta(
-                    days=1
-                )
-
-        if datum_tot < datum_van:
-
-            st.warning(
-                "De einddatum moet op of na de begindatum liggen."
-            )
-
-        elif not weekdagen:
-
-            st.warning(
-                "Selecteer minimaal één weekdag."
-            )
-
-        elif geselecteerde_datums:
-
-            st.info(
-                f"{len(geselecteerde_datums)} "
-                f"ritten geselecteerd."
-            )
-
-            with st.expander(
-                "Bekijk geselecteerde datums"
-            ):
-
-                for geselecteerde_datum in (
-                    geselecteerde_datums
-                ):
-
-                    st.write(
-                        geselecteerde_datum.strftime(
-                            "%d-%m-%Y"
-                        )
-                    )
-
-
-    # --------------------------------------------------------
-    # Ritgegevens
-    # --------------------------------------------------------
-
-    st.divider()
-
-    st.subheader("📍 Route")
-
-    col1, col2 = st.columns(2)
-
-
-    # ========================================================
-    # LINKER KOLOM
-    # ========================================================
-
-    with col1:
 
         # ----------------------------------------------------
         # VAN
         # ----------------------------------------------------
 
-        van_keuze = st.selectbox(
-            "Van",
-            options=[
-                "Nieuwe locatie..."
-            ] + opgeslagen_locaties,
-            index=None,
-            placeholder="Kies een locatie...",
-            key="van_keuze",
-        )
+        with col1:
 
-        if (
-            van_keuze
-            == "Nieuwe locatie..."
-        ):
-
-            van = st.text_input(
-                "Nieuwe vertreklocatie",
-                placeholder=(
-                    "Bijvoorbeeld: Hoorn"
-                ),
-                key="van_nieuw",
+            van_keuze = (
+                st.selectbox(
+                    "Van",
+                    options=[
+                        "Nieuwe locatie..."
+                    ]
+                    + opgeslagen_locaties,
+                    index=None,
+                    placeholder=(
+                        "Kies vertrekpunt..."
+                    ),
+                    key="van_keuze",
+                )
             )
 
-        else:
 
-            van = (
+            if (
                 van_keuze
-                if van_keuze
-                else ""
-            )
+                == "Nieuwe locatie..."
+            ):
+
+                van = (
+                    st.text_input(
+                        "Nieuwe vertreklocatie",
+                        placeholder=(
+                            "Bijvoorbeeld: Hoorn"
+                        ),
+                        key="van_nieuw",
+                    )
+                )
+
+
+            else:
+
+                van = (
+                    van_keuze
+                    or ""
+                )
 
 
         # ----------------------------------------------------
         # NAAR
         # ----------------------------------------------------
 
-        naar_keuze = st.selectbox(
-            "Naar",
-            options=[
-                "Nieuwe locatie..."
-            ] + opgeslagen_locaties,
-            index=None,
-            placeholder="Kies een bestemming...",
-            key="naar_keuze",
-        )
+        with col2:
 
-        if (
-            naar_keuze
-            == "Nieuwe locatie..."
-        ):
-
-            naar = st.text_input(
-                "Nieuwe bestemming",
-                placeholder=(
-                    "Bijvoorbeeld: Amsterdam"
-                ),
-                key="naar_nieuw",
+            naar_keuze = (
+                st.selectbox(
+                    "Naar",
+                    options=[
+                        "Nieuwe locatie..."
+                    ]
+                    + opgeslagen_locaties,
+                    index=None,
+                    placeholder=(
+                        "Kies bestemming..."
+                    ),
+                    key="naar_keuze",
+                )
             )
 
-        else:
 
-            naar = (
+            if (
                 naar_keuze
-                if naar_keuze
-                else ""
+                == "Nieuwe locatie..."
+            ):
+
+                naar = (
+                    st.text_input(
+                        "Nieuwe bestemming",
+                        placeholder=(
+                            "Bijvoorbeeld: Amsterdam"
+                        ),
+                        key="naar_nieuw",
+                    )
+                )
+
+
+            else:
+
+                naar = (
+                    naar_keuze
+                    or ""
+                )
+
+
+        omschrijving = (
+            st.text_input(
+                "Omschrijving",
+                placeholder=(
+                    "Bijvoorbeeld: kantoor, "
+                    "klantbezoek of project"
+                ),
+            )
+        )
+
+
+        rit1, rit2 = (
+            st.columns(2)
+        )
+
+
+        with rit1:
+
+            type_rit = (
+                st.selectbox(
+                    "Type rit",
+                    [
+                        "Zakelijk",
+                        "Woon-werk",
+                        "Privé",
+                    ],
+                )
             )
 
 
-        # ----------------------------------------------------
-        # OMSCHRIJVING
-        # ----------------------------------------------------
+        with rit2:
 
-        omschrijving = st.text_input(
-            "Omschrijving",
-            placeholder=(
-                "Bijvoorbeeld: kantoor, "
-                "klantbezoek, project"
-            ),
-        )
+            enkele_km = (
+                st.number_input(
+                    "Afstand enkele reis (km)",
+                    min_value=0.0,
+                    step=1.0,
+                    format="%.1f",
+                )
+            )
 
 
-    # ========================================================
-    # RECHTER KOLOM
-    # ========================================================
-
-    with col2:
-
-        type_rit = st.selectbox(
-            "Type rit",
-            [
-                "Zakelijk",
-                "Woon-werk",
-                "Privé",
-            ],
-        )
-
-        enkele_km = st.number_input(
-            "Afstand enkele reis (km)",
-            min_value=0.0,
-            step=1.0,
-            format="%.1f",
-        )
-
-        retourrit = st.checkbox(
+        retourrit = st.toggle(
             "Retourrit",
             value=True,
         )
 
-        vergoeding_per_km = (
-            st.number_input(
-                "Kilometervergoeding werkgever (€ / km)",
-                min_value=0.0,
-                value=0.31,
-                step=0.01,
-                format="%.3f",
-                disabled=(
-                    type_rit
-                    == "Privé"
-                ),
-            )
-        )
 
-
-    # --------------------------------------------------------
-    # Kilometerberekening
-    # --------------------------------------------------------
+    # ========================================================
+    # KILOMETERS
+    # ========================================================
 
     if retourrit:
 
         km_per_rit = (
-            enkele_km * 2
+            enkele_km
+            * 2
         )
 
     else:
@@ -697,45 +1110,61 @@ with tab_nieuw:
         geselecteerde_datums
     )
 
-    totaal_km_selectie = (
+
+    totaal_km = (
         km_per_rit
         * aantal_ritten
     )
 
 
     # ========================================================
-    # VERGOEDING
+    # 3. VERGOEDING
     # ========================================================
 
-    st.divider()
+    with st.container(
+        border=True
+    ):
 
-    st.subheader(
-        "💶 Vergoeding"
-    )
-
-
-    if type_rit in [
-        "Zakelijk",
-        "Woon-werk"
-    ]:
-
-        col3, col4 = (
-            st.columns(2)
+        st.markdown(
+            "#### 💶 Vergoeding"
         )
 
-        with col3:
 
-            belastingvrij_per_km = (
-                st.number_input(
-                    "Belastingvrij bedrag per km (€)",
-                    min_value=0.0,
-                    value=0.25,
-                    step=0.01,
-                    format="%.3f",
-                )
+        if type_rit in [
+            "Zakelijk",
+            "Woon-werk"
+        ]:
+
+            vergoeding1, vergoeding2 = (
+                st.columns(2)
             )
 
-        with col4:
+
+            with vergoeding1:
+
+                vergoeding_per_km = (
+                    st.number_input(
+                        "Vergoeding werkgever (€ / km)",
+                        min_value=0.0,
+                        value=0.31,
+                        step=0.01,
+                        format="%.3f",
+                    )
+                )
+
+
+            with vergoeding2:
+
+                belastingvrij_per_km = (
+                    st.number_input(
+                        "Belastingvrij (€ / km)",
+                        min_value=0.0,
+                        value=0.25,
+                        step=0.01,
+                        format="%.3f",
+                    )
+                )
+
 
             belastingpercentage = (
                 st.number_input(
@@ -749,73 +1178,68 @@ with tab_nieuw:
             )
 
 
-        # Bruto per rit
-        bruto_per_rit = (
-            km_per_rit
-            * vergoeding_per_km
-        )
-
-
-        # Belastingvrij per rit
-        belastingvrij_per_rit = (
-            km_per_rit
-            * min(
-                vergoeding_per_km,
-                belastingvrij_per_km,
+            bruto_per_rit = (
+                km_per_rit
+                * vergoeding_per_km
             )
-        )
 
 
-        # Belast deel
-        belast_per_rit = max(
-            bruto_per_rit
-            - belastingvrij_per_rit,
-            0,
-        )
-
-
-        # Belasting
-        belasting_per_rit = (
-            belast_per_rit
-            * (
-                belastingpercentage
-                / 100
+            belastingvrij_per_rit = (
+                km_per_rit
+                * min(
+                    vergoeding_per_km,
+                    belastingvrij_per_km
+                )
             )
-        )
 
 
-        # Netto
-        netto_per_rit = (
-            bruto_per_rit
-            - belasting_per_rit
-        )
+            belast_per_rit = max(
+                bruto_per_rit
+                - belastingvrij_per_rit,
+                0
+            )
 
 
-    else:
-
-        belastingvrij_per_km = 0
-        belastingpercentage = 0
-
-        bruto_per_rit = 0
-        belastingvrij_per_rit = 0
-        belast_per_rit = 0
-        belasting_per_rit = 0
-        netto_per_rit = 0
-
-        st.info(
-            "Privérit geselecteerd: "
-            "er wordt geen kilometervergoeding berekend."
-        )
+            belasting_per_rit = (
+                belast_per_rit
+                * (
+                    belastingpercentage
+                    / 100
+                )
+            )
 
 
-    # --------------------------------------------------------
-    # Totalen
-    # --------------------------------------------------------
+            netto_per_rit = (
+                bruto_per_rit
+                - belasting_per_rit
+            )
+
+
+        else:
+
+            vergoeding_per_km = 0
+            belastingvrij_per_km = 0
+            belastingpercentage = 0
+
+            bruto_per_rit = 0
+            netto_per_rit = 0
+
+
+            st.info(
+                "Voor een privérit wordt "
+                "geen kilometervergoeding berekend."
+            )
+
+
+    # ========================================================
+    # 4. SAMENVATTING
+    # ========================================================
 
     bruto_totaal = (
         bruto_per_rit
         * aantal_ritten
     )
+
 
     netto_totaal = (
         netto_per_rit
@@ -823,62 +1247,49 @@ with tab_nieuw:
     )
 
 
-    # ========================================================
-    # KPI'S
-    # ========================================================
+    st.markdown(
+        "### Samenvatting"
+    )
+
 
     k1, k2, k3, k4 = (
         st.columns(4)
     )
 
+
     k1.metric(
         "Aantal ritten",
-        f"{aantal_ritten}",
+        aantal_ritten
     )
+
 
     k2.metric(
-        "Totaal kilometers",
-        f"{totaal_km_selectie:.1f} km",
+        "Totaal",
+        f"{totaal_km:.1f} km"
     )
 
+
     k3.metric(
-        "Bruto vergoeding",
-        f"€ {bruto_totaal:.2f}",
+        "Bruto",
+        f"€ {bruto_totaal:.2f}"
     )
+
 
     k4.metric(
         "Geschat netto",
-        f"€ {netto_totaal:.2f}",
+        f"€ {netto_totaal:.2f}"
     )
 
 
-    # --------------------------------------------------------
-    # Extra informatie
-    # --------------------------------------------------------
-
     if (
-        retourrit
-        and enkele_km > 0
+        enkele_km > 0
+        and retourrit
     ):
 
         st.caption(
-            f"Per rit: "
             f"{enkele_km:.1f} km heen + "
             f"{enkele_km:.1f} km terug = "
-            f"{km_per_rit:.1f} km."
-        )
-
-
-    if (
-        invoer_type
-        == "Meerdere dagen"
-        and aantal_ritten > 0
-    ):
-
-        st.caption(
-            f"{aantal_ritten} ritten × "
-            f"{km_per_rit:.1f} km = "
-            f"{totaal_km_selectie:.1f} km totaal."
+            f"{km_per_rit:.1f} km per rit."
         )
 
 
@@ -886,7 +1297,8 @@ with tab_nieuw:
     # OPSLAAN
     # ========================================================
 
-    st.divider()
+    st.write("")
+
 
     if st.button(
         "💾 Rit opslaan",
@@ -897,21 +1309,24 @@ with tab_nieuw:
         if not geselecteerde_datums:
 
             st.error(
-                "Selecteer minimaal één geldige datum."
+                "Selecteer minimaal "
+                "één datum."
             )
 
 
         elif not van.strip():
 
             st.error(
-                "Selecteer of vul een vertrekpunt in."
+                "Selecteer of vul "
+                "een vertrekpunt in."
             )
 
 
         elif not naar.strip():
 
             st.error(
-                "Selecteer of vul een bestemming in."
+                "Selecteer of vul "
+                "een bestemming in."
             )
 
 
@@ -939,12 +1354,16 @@ with tab_nieuw:
 
                 records = []
 
+
                 for rit_datum in (
                     geselecteerde_datums
                 ):
 
                     records.append(
                         {
+                            "user_id":
+                                user.id,
+
                             "datum":
                                 rit_datum.isoformat(),
 
@@ -964,10 +1383,7 @@ with tab_nieuw:
                                 type_rit,
 
                             "vergoeding_per_km":
-                                vergoeding_per_km
-                                if type_rit
-                                != "Privé"
-                                else 0,
+                                vergoeding_per_km,
 
                             "belastingvrij_per_km":
                                 belastingvrij_per_km,
@@ -986,32 +1402,17 @@ with tab_nieuw:
                 )
 
 
-                # Cache leegmaken zodat nieuwe locatie
-                # direct beschikbaar wordt
                 st.cache_data.clear()
 
 
-                if type_rit == "Privé":
-
-                    st.success(
+                st.toast(
+                    (
                         f"{len(records)} rit"
                         f"{'ten' if len(records) != 1 else ''} "
-                        f"opgeslagen. "
-                        f"Totaal "
-                        f"{totaal_km_selectie:.1f} km."
-                    )
-
-                else:
-
-                    st.success(
-                        f"{len(records)} rit"
-                        f"{'ten' if len(records) != 1 else ''} "
-                        f"opgeslagen. "
-                        f"Totaal "
-                        f"{totaal_km_selectie:.1f} km "
-                        f"met een geschatte netto vergoeding "
-                        f"van € {netto_totaal:.2f}."
-                    )
+                        f"opgeslagen"
+                    ),
+                    icon="✅"
+                )
 
 
                 st.rerun()
@@ -1027,7 +1428,7 @@ with tab_nieuw:
 
 
 # ============================================================
-# TAB 2 - ZAKELIJK
+# TAB 2 — ZAKELIJK
 # ============================================================
 
 with tab_zakelijk:
@@ -1037,21 +1438,24 @@ with tab_zakelijk:
     )
 
     st.caption(
-        "Zakelijke en woon-werkritten inclusief kilometervergoeding."
+        "Zakelijke en woon-werkritten "
+        "inclusief kilometervergoeding."
     )
 
 
     if ritten_df.empty:
 
         st.info(
-            "Er zijn nog geen ritten opgeslagen."
+            "Nog geen zakelijke ritten."
         )
 
 
     else:
 
         zakelijke_df = ritten_df[
-            ritten_df["type_rit"].isin(
+            ritten_df[
+                "type_rit"
+            ].isin(
                 [
                     "Zakelijk",
                     "Woon-werk"
@@ -1063,113 +1467,141 @@ with tab_zakelijk:
         if zakelijke_df.empty:
 
             st.info(
-                "Er zijn nog geen zakelijke "
-                "of woon-werkritten opgeslagen."
+                "Nog geen zakelijke "
+                "of woon-werkritten."
             )
 
 
         else:
 
-            # ------------------------------------------------
-            # KPI'S
-            # ------------------------------------------------
-
-            totaal_zakelijke_km = (
-                zakelijke_df[
-                    "kilometers"
-                ].sum()
-            )
-
-            totaal_bruto = (
-                zakelijke_df[
-                    "bruto_vergoeding"
-                ].sum()
-            )
-
-            totaal_netto = (
-                zakelijke_df[
-                    "netto_vergoeding"
-                ].sum()
-            )
-
-            aantal_zakelijke_ritten = (
-                len(zakelijke_df)
+            filter1, filter2 = (
+                st.columns(2)
             )
 
 
-            c1, c2, c3, c4 = (
-                st.columns(4)
-            )
+            with filter1:
+
+                periode = (
+                    st.selectbox(
+                        "Periode",
+                        [
+                            "Alles",
+                            "Deze maand",
+                            "Vorige maand",
+                            "Dit jaar",
+                        ],
+                        key="zakelijk_periode",
+                    )
+                )
 
 
-            c1.metric(
-                "Aantal ritten",
-                f"{aantal_zakelijke_ritten}",
-            )
+            with filter2:
 
-            c2.metric(
-                "Zakelijke kilometers",
-                f"{totaal_zakelijke_km:.1f} km",
-            )
-
-            c3.metric(
-                "Bruto vergoeding",
-                f"€ {totaal_bruto:.2f}",
-            )
-
-            c4.metric(
-                "Geschat netto",
-                f"€ {totaal_netto:.2f}",
-            )
+                types = (
+                    st.multiselect(
+                        "Type",
+                        [
+                            "Zakelijk",
+                            "Woon-werk",
+                        ],
+                        default=[
+                            "Zakelijk",
+                            "Woon-werk",
+                        ],
+                        key="zakelijk_type",
+                    )
+                )
 
 
-            # ------------------------------------------------
-            # FILTER
-            # ------------------------------------------------
-
-            st.divider()
-
-            filter_type = st.multiselect(
-                "Toon type rit",
-                [
-                    "Zakelijk",
-                    "Woon-werk",
-                ],
-                default=[
-                    "Zakelijk",
-                    "Woon-werk",
-                ],
-                key="filter_zakelijk",
-            )
-
-
-            zakelijke_filter = (
+            zakelijk_filter = (
                 zakelijke_df[
                     zakelijke_df[
                         "type_rit"
-                    ].isin(
-                        filter_type
-                    )
+                    ].isin(types)
                 ]
                 .copy()
             )
 
 
-            # ------------------------------------------------
-            # TABEL
-            # ------------------------------------------------
+            zakelijk_filter = (
+                filter_periode(
+                    zakelijk_filter,
+                    periode
+                )
+            )
 
-            if zakelijke_filter.empty:
+
+            if zakelijk_filter.empty:
 
                 st.info(
-                    "Geen ritten voor deze selectie."
+                    "Geen ritten binnen "
+                    "de geselecteerde filters."
                 )
+
 
             else:
 
+                totaal_km_zakelijk = (
+                    zakelijk_filter[
+                        "kilometers"
+                    ].sum()
+                )
+
+
+                totaal_bruto = (
+                    zakelijk_filter[
+                        "bruto_vergoeding"
+                    ].sum()
+                )
+
+
+                totaal_netto = (
+                    zakelijk_filter[
+                        "netto_vergoeding"
+                    ].sum()
+                )
+
+
+                aantal = len(
+                    zakelijk_filter
+                )
+
+
+                z1, z2, z3, z4 = (
+                    st.columns(4)
+                )
+
+
+                z1.metric(
+                    "Ritten",
+                    aantal
+                )
+
+
+                z2.metric(
+                    "Kilometers",
+                    f"{totaal_km_zakelijk:.1f} km"
+                )
+
+
+                z3.metric(
+                    "Bruto",
+                    f"€ {totaal_bruto:.2f}"
+                )
+
+
+                z4.metric(
+                    "Netto",
+                    f"€ {totaal_netto:.2f}"
+                )
+
+
+                st.write("")
+
+
                 overzicht = (
                     format_overzicht(
-                        zakelijke_filter,
+                        zakelijk_filter,
                         inclusief_vergoeding=True,
                     )
                 )
@@ -1182,19 +1614,14 @@ with tab_zakelijk:
                 )
 
 
-                # --------------------------------------------
-                # VERWIJDEREN
-                # --------------------------------------------
-
                 verwijder_rit(
-                    zakelijke_filter,
-                    "Zakelijke rit",
-                    "delete_zakelijk",
+                    zakelijk_filter,
+                    "delete_zakelijk"
                 )
 
 
 # ============================================================
-# TAB 3 - PRIVÉ
+# TAB 3 — PRIVÉ
 # ============================================================
 
 with tab_prive:
@@ -1211,14 +1638,16 @@ with tab_prive:
     if ritten_df.empty:
 
         st.info(
-            "Er zijn nog geen ritten opgeslagen."
+            "Nog geen privéritten."
         )
 
 
     else:
 
         prive_df = ritten_df[
-            ritten_df["type_rit"]
+            ritten_df[
+                "type_rit"
+            ]
             == "Privé"
         ].copy()
 
@@ -1226,92 +1655,118 @@ with tab_prive:
         if prive_df.empty:
 
             st.info(
-                "Er zijn nog geen privéritten opgeslagen."
+                "Nog geen privéritten."
             )
 
 
         else:
 
-            # ------------------------------------------------
-            # KPI'S
-            # ------------------------------------------------
-
-            totaal_prive_km = (
-                prive_df[
-                    "kilometers"
-                ].sum()
-            )
-
-            aantal_prive_ritten = (
-                len(prive_df)
-            )
-
-            gemiddelde_rit = (
-                prive_df[
-                    "kilometers"
-                ].mean()
-            )
-
-            langste_rit = (
-                prive_df[
-                    "kilometers"
-                ].max()
-            )
-
-
-            p1, p2, p3, p4 = (
-                st.columns(4)
-            )
-
-
-            p1.metric(
-                "Aantal ritten",
-                f"{aantal_prive_ritten}",
-            )
-
-            p2.metric(
-                "Privékilometers",
-                f"{totaal_prive_km:.1f} km",
-            )
-
-            p3.metric(
-                "Gem. ritafstand",
-                f"{gemiddelde_rit:.1f} km",
-            )
-
-            p4.metric(
-                "Langste rit",
-                f"{langste_rit:.1f} km",
-            )
-
-
-            # ------------------------------------------------
-            # TABEL
-            # ------------------------------------------------
-
-            st.divider()
-
-            overzicht = (
-                format_overzicht(
-                    prive_df,
-                    inclusief_vergoeding=False,
+            periode_prive = (
+                st.selectbox(
+                    "Periode",
+                    [
+                        "Alles",
+                        "Deze maand",
+                        "Vorige maand",
+                        "Dit jaar",
+                    ],
+                    key="prive_periode",
                 )
             )
 
 
-            st.dataframe(
-                overzicht,
-                use_container_width=True,
-                hide_index=True,
+            prive_filter = (
+                filter_periode(
+                    prive_df,
+                    periode_prive
+                )
             )
 
 
-            # ------------------------------------------------
-            # VERWIJDEREN
-            # ------------------------------------------------
+            if prive_filter.empty:
 
-            verwijder_rit(
-                prive_df,
-                "Privérit",
-                "delete_prive",
-            )
+                st.info(
+                    "Geen privéritten binnen "
+                    "de geselecteerde periode."
+                )
+
+
+            else:
+
+                aantal = len(
+                    prive_filter
+                )
+
+
+                totaal = (
+                    prive_filter[
+                        "kilometers"
+                    ].sum()
+                )
+
+
+                gemiddeld = (
+                    prive_filter[
+                        "kilometers"
+                    ].mean()
+                )
+
+
+                langste = (
+                    prive_filter[
+                        "kilometers"
+                    ].max()
+                )
+
+
+                p1, p2, p3, p4 = (
+                    st.columns(4)
+                )
+
+
+                p1.metric(
+                    "Ritten",
+                    aantal
+                )
+
+
+                p2.metric(
+                    "Kilometers",
+                    f"{totaal:.1f} km"
+                )
+
+
+                p3.metric(
+                    "Gemiddelde rit",
+                    f"{gemiddeld:.1f} km"
+                )
+
+
+                p4.metric(
+                    "Langste rit",
+                    f"{langste:.1f} km"
+                )
+
+
+                st.write("")
+
+
+                overzicht = (
+                    format_overzicht(
+                        prive_filter,
+                        inclusief_vergoeding=False,
+                    )
+                )
+
+
+                st.dataframe(
+                    overzicht,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+
+                verwijder_rit(
+                    prive_filter,
+                    "delete_prive"
+                )
