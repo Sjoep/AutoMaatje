@@ -3,3 +3,4 @@ pandas
 plotly
 streamlit-elements==0.1.*
 supabase
+requests

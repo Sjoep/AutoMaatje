@@ -214,7 +214,62 @@ st.markdown(
 
 user, supabase = require_login()
 
+# ============================================================
+# GEBRUIKERSINSTELLINGEN OPHALEN
+# ============================================================
 
+def load_instellingen(user_id):
+    try:
+        response = (
+            supabase
+            .table("instellingen")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0]
+
+    except Exception:
+        pass
+
+    # Fallback als gebruiker nog geen instellingen heeft opgeslagen
+    return {
+        "kilometervergoeding": 0.31,
+        "belastingvrij_per_km": 0.25,
+        "belastingpercentage": 35.75,
+        "standaard_type_rit": "Woon-werk",
+        "standaard_retourrit": True,
+    }
+
+
+instellingen = load_instellingen(user.id)
+
+
+DEFAULT_KILOMETERVERGOEDING = float(
+    instellingen.get("kilometervergoeding") or 0.31
+)
+
+DEFAULT_BELASTINGVRIJ = float(
+    instellingen.get("belastingvrij_per_km") or 0.25
+)
+
+DEFAULT_BELASTINGPERCENTAGE = float(
+    instellingen.get("belastingpercentage") or 35.75
+)
+
+DEFAULT_TYPE_RIT = instellingen.get(
+    "standaard_type_rit"
+) or "Woon-werk"
+
+DEFAULT_RETOURRIT = instellingen.get(
+    "standaard_retourrit"
+)
+
+if DEFAULT_RETOURRIT is None:
+    DEFAULT_RETOURRIT = True
 # ============================================================
 # HEADER
 # ============================================================
@@ -1146,7 +1201,7 @@ with tab_nieuw:
                     st.number_input(
                         "Vergoeding werkgever (€ / km)",
                         min_value=0.0,
-                        value=0.31,
+                        value=DEFAULT_KILOMETERVERGOEDING,
                         step=0.01,
                         format="%.3f",
                     )
@@ -1159,7 +1214,7 @@ with tab_nieuw:
                     st.number_input(
                         "Belastingvrij (€ / km)",
                         min_value=0.0,
-                        value=0.25,
+                        value=DEFAULT_BELASTINGVRIJ,
                         step=0.01,
                         format="%.3f",
                     )
@@ -1171,7 +1226,7 @@ with tab_nieuw:
                     "Belastingpercentage belast deel (%)",
                     min_value=0.0,
                     max_value=100.0,
-                    value=35.75,
+                    value=DEFAULT_BELASTINGPERCENTAGE,
                     step=0.1,
                     format="%.2f",
                 )
